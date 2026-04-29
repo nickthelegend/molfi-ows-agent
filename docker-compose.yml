@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  molfi-ows-agent:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - JWT_SECRET=${JWT_SECRET}
+      - WALLET_ENCRYPTION_KEY=${WALLET_ENCRYPTION_KEY}
+      - ROOT_ENS_NAME=${ROOT_ENS_NAME}
+      - SIGNER_PRIVATE_KEY=${SIGNER_PRIVATE_KEY}
+      - RPC_URL=${RPC_URL}
+      - OWS_WALLETS_PATH=/home/node/.ows/wallets
+    volumes:
+      - ows-vault:/home/node/.ows
+    restart: unless-stopped
+
+volumes:
+  ows-vault:
+    driver: local
