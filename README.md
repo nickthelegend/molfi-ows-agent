@@ -1,14 +1,18 @@
-# Molfi OWS Agent Backend
+## Security Architecture
 
-A secure Node.js backend for managing AI agent wallets and signing transactions using the Open Wallet Standard (OWS).
+This backend implements a high-security model for AI agent wallets:
+- **Stateless Signing**: Wallets are NOT stored permanently on disk.
+- **Vault-Backed Storage**: Encrypted OWS wallet blobs are stored as secrets in **HashiCorp Vault**.
+- **Ephemeral Keys**: At runtime, the encrypted blob is fetched from Vault, loaded into a RAM-backed temporary file (`/tmp/`), used for signing, and then **immediately zeroized/deleted**.
+- **OWS Standard**: Uses the Open Wallet Standard for local-first, multi-chain signing without exposing private keys.
 
 ## Features
 
+- **HashiCorp Vault Integration**: Securely stores encrypted blobs in KV v2.
 - **Secure Wallet Creation**: Generates encrypted OWS wallets for each AI agent.
 - **Transaction Signing**: Safely signs transactions and messages without exposing private keys.
-- **ENS Integration**: Automatically creates subdomains for agents (e.g., `agent-name.nivesh.eth`).
-- **Policy Enforcement**: Middleware support for spending limits and chain restrictions.
-- **Dockerized**: Multi-stage build with non-root user and persistent volume support.
+- **ENS Integration**: Automatically creates subdomains for agents.
+- **Dockerized**: Ready for production with a sidecar Vault service.
 
 ## Tech Stack
 

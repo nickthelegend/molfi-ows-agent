@@ -28,9 +28,16 @@ app.use(limiter);
 // Routes
 app.use('/agents', agentRoutes);
 
+import { vaultService } from './services/vaultService';
+
 // Health Check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (req, res) => {
+  const vaultHealthy = await vaultService.checkHealth();
+  res.json({ 
+    status: vaultHealthy ? 'ok' : 'degraded', 
+    vault: vaultHealthy ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString() 
+  });
 });
 
 // Root route

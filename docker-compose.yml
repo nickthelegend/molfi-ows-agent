@@ -13,11 +13,36 @@ services:
       - ROOT_ENS_NAME=${ROOT_ENS_NAME}
       - SIGNER_PRIVATE_KEY=${SIGNER_PRIVATE_KEY}
       - RPC_URL=${RPC_URL}
-      - OWS_WALLETS_PATH=/home/node/.ows/wallets
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=${VAULT_TOKEN:-root}
+      - OWS_WALLETS_PATH=/tmp/ows-wallets
+    depends_on:
+      vault:
+        condition: service_healthy
     volumes:
-      - ows-vault:/home/node/.ows
+      - /tmp:/tmp
+    restart: unless-stopped
+
+  vault:
+    image: hashicorp/vault:1.18
+    ports:
+      - "8200:8200"
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_TOKEN:-root}
+      - VAULT_ADDR=http://127.0.0.1:8200
+    # For production, use a config file and remove VAULT_DEV_ROOT_TOKEN_ID
+    # command: server -config=/vault/config/vault.hcl
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-data:/vault/file
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
 volumes:
-  ows-vault:
+  vault-data:
     driver: local
