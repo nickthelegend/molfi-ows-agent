@@ -51,18 +51,20 @@ router.post('/create', async (req, res) => {
     // 1. Create OWS Wallet
     const walletInfo = await owsService.createWallet(name);
 
-    // 2. Optional: Create ENS Subdomain
-    let ensName = null;
-    if (process.env.ROOT_ENS_NAME) {
+    // 2. Optional: Create ENS Subdomain (Non-blocking)
+    let ensSubdomain = null;
+    try {
       const ensResult = await ensService.createSubdomain(name, walletInfo.address);
       if (ensResult) {
-        ensName = ensResult.ensName;
+        ensSubdomain = ensResult.ensName;
       }
+    } catch (ensError) {
+      console.error('[ows] ENS creation failed gracefully:', ensError);
     }
 
     // 3. Generate Agent Token (JWT)
-    const agentToken = jwt.sign(
-      { agentId: walletInfo.agentId, name: name },
+    const agentJwt = jwt.sign(
+      { agentId: walletInfo.agentId, name: name, walletAddress: walletInfo.address },
       JWT_SECRET,
       { expiresIn: '365d' } // Long-lived token for the agent
     );
@@ -70,9 +72,9 @@ router.post('/create', async (req, res) => {
     res.status(201).json({
       success: true,
       agentId: walletInfo.agentId,
-      ensName,
+      ensSubdomain,
       walletAddress: walletInfo.address,
-      agentToken,
+      agentJwt,
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
