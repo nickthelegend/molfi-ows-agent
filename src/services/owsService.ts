@@ -29,37 +29,50 @@ export class OWSService {
     const walletName = `${name}-${agentId}`;
     const passphrase = process.env.WALLET_ENCRYPTION_KEY || null;
 
+    console.log(`[owsService] Starting createWallet for ${name}. AgentId: ${agentId}`);
+
     // 1. Create wallet using OWS SDK in temp storage
-    const walletInfo = createWallet(walletName, passphrase, 12, OWS_TEMP_ROOT);
-    console.log(`[ows] Wallet created in SDK. Checking path: ${OWS_TEMP_ROOT}`);
-    
-    // 2. Read the encrypted blob (the .json file created by OWS)
-    // The SDK creates the file in OWS_TEMP_ROOT/wallets/{id}.json
-    const walletPath = path.join(OWS_TEMP_ROOT, 'wallets', `${walletInfo.id}.json`);
-    
-    if (!fs.existsSync(walletPath)) {
-       throw new Error(`Wallet file not found at ${walletPath}`);
+    try {
+      console.log('[owsService] Calling OWS SDK createWallet...');
+      const walletInfo = createWallet(walletName, passphrase, 12, OWS_TEMP_ROOT);
+      console.log(`[owsService] OWS SDK created wallet: ${walletInfo.id}`);
+      
+      // 2. Read the encrypted blob
+      const walletPath = path.join(OWS_TEMP_ROOT, 'wallets', `${walletInfo.id}.json`);
+      console.log(`[owsService] Reading wallet blob from: ${walletPath}`);
+      
+      if (!fs.existsSync(walletPath)) {
+         throw new Error(`Wallet file not found at ${walletPath}`);
+      }
+
+      const blob = fs.readFileSync(walletPath, 'utf8');
+      console.log('[owsService] Wallet blob read successfully');
+
+      // 3. Store blob and the OWS ID in HashiCorp Vault
+      console.log('[owsService] Storing blob in Vault...');
+      await vaultService.storeWalletBlob(agentId, {
+        blob,
+        owsId: walletInfo.id
+      });
+      console.log('[owsService] Vault storage successful');
+
+      // 4. Securely delete the local temp file immediately
+      console.log('[owsService] Cleaning up temp file...');
+      await vaultService.cleanupTemp(agentId, walletInfo.id);
+
+      const evmAccount = walletInfo.accounts.find(a => a.chainId.startsWith('eip155:'));
+      const address = evmAccount ? evmAccount.address : 'unknown';
+      
+      console.log('[owsService] createWallet completed successfully for address:', address);
+      return {
+        agentId,
+        address,
+        walletName
+      };
+    } catch (err: any) {
+      console.error('[owsService] Error in createWallet:', err);
+      throw err;
     }
-
-    const blob = fs.readFileSync(walletPath, 'utf8');
-
-    // 3. Store blob and the OWS ID in HashiCorp Vault
-    await vaultService.storeWalletBlob(agentId, {
-      blob,
-      owsId: walletInfo.id
-    });
-
-    // 4. Securely delete the local temp file immediately
-    await vaultService.cleanupTemp(agentId, walletInfo.id);
-
-    const evmAccount = walletInfo.accounts.find(a => a.chainId.startsWith('eip155:'));
-    const address = evmAccount ? evmAccount.address : 'unknown';
-    
-    return {
-      agentId,
-      address,
-      walletName
-    };
   }
 
   /**

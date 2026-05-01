@@ -31,13 +31,16 @@ export class VaultService {
    * Stores encrypted wallet data in Vault KV v2.
    */
   async storeWalletBlob(agentId: string, data: { blob: string, owsId: string }) {
+    console.log(`[vaultService] storeWalletBlob for agent: ${agentId} to path: ${this.secretPath}`);
     try {
+      console.log(`[vaultService] Calling Vault client.write to: ${process.env.VAULT_ADDR || 'http://127.0.0.1:8200'}`);
       await this.client.write(`${this.secretPath}/${agentId}`, {
         data,
       });
-      console.log(`[vault] Stored wallet data for agent ${agentId}`);
-    } catch (error) {
-      console.error(`[vault] Failed to store data for agent ${agentId}:`, error);
+      console.log(`[vaultService] Successfully stored data for agent ${agentId}`);
+    } catch (error: any) {
+      console.error(`[vaultService] Failed to store data for agent ${agentId} ERROR:`, error);
+      if (error.stack) console.error('[vaultService] Stack Trace:', error.stack);
       throw error;
     }
   }

@@ -10,6 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-for-dev-only';
 // Validation schemas
 const createAgentSchema = z.object({
   name: z.string().min(3).max(20).regex(/^[a-z0-9-]+$/),
+  createEns: z.boolean().optional().default(false),
   policy: z.object({
     maxDailyUsd: z.number().optional(),
     allowedChains: z.array(z.string()).optional(),
@@ -53,13 +54,15 @@ router.post('/create', async (req, res) => {
 
     // 2. Optional: Create ENS Subdomain (Non-blocking)
     let ensSubdomain = null;
-    try {
-      const ensResult = await ensService.createSubdomain(name, walletInfo.address);
-      if (ensResult) {
-        ensSubdomain = ensResult.ensName;
+    if (req.body.createEns) {
+      try {
+        const ensResult = await ensService.createSubdomain(name, walletInfo.address);
+        if (ensResult) {
+          ensSubdomain = ensResult.ensName;
+        }
+      } catch (ensError) {
+        console.error('[ows] ENS creation failed gracefully:', ensError);
       }
-    } catch (ensError) {
-      console.error('[ows] ENS creation failed gracefully:', ensError);
     }
 
     // 3. Generate Agent Token (JWT)
@@ -80,8 +83,9 @@ router.post('/create', async (req, res) => {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors });
     }
-    console.error('Agent creation failed:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('[ows] Agent creation failed ERROR:', error);
+    if (error.stack) console.error('[ows] Stack Trace:', error.stack);
+    res.status(500).json({ success: false, error: error.message || 'Internal server error' });
   }
 });
 

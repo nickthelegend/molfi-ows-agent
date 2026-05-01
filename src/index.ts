@@ -1,5 +1,7 @@
-import dotenv from 'dotenv';
 dotenv.config();
+
+// Temporary fix for local SSL handshake issues on some Windows environments
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 import express from 'express';
 import cors from 'cors';
